@@ -1,0 +1,46 @@
+plugins {
+    id(GradlePluginId.androidFeature)
+    id(GradlePluginId.kotlinAndroid)
+    id(GradlePluginId.kotlinAndroidExtensions)
+    id(GradlePluginId.kotlinKapt)
+}
+
+android {
+    compileSdkVersion(ApplicationConfig.compileSdkVersion)
+
+    defaultConfig {
+        minSdkVersion(ApplicationConfig.minSdkVersion)
+        targetSdkVersion(ApplicationConfig.targetSdkVersion)
+
+        testInstrumentationRunner = ApplicationConfig.testInstrumentationRunner
+        vectorDrawables.useSupportLibrary = ApplicationConfig.supportLibraryVectorDrawables
+    }
+
+    buildTypes {
+        getByName("release") {
+            manifestPlaceholders["isDebug"] = false
+        }
+
+        getByName("debug") {
+            manifestPlaceholders["isDebug"] = true
+        }
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = TestOptions.isReturnDefaultValues
+    }
+}
+
+androidExtensions { isExperimental = true }
+
+dependencies {
+    // module
+    implementation(project(ModuleDependency.featureBase))
+    implementation(project(ModuleDependency.libraryFlags))
+
+    // core
+    addCommonCoreDependencies()
+
+    // test
+    addTestDependencies()
+}

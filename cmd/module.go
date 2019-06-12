@@ -66,9 +66,11 @@ func genModule(cmd *cobra.Command, args []string) {
 		writeStatic(el, moduleNameLowerCase)
 	}
 
-	fmt.Printf("Don't forget to add the following lines: \n\tconst val "+
-		"feature%s = \":feature_%s\" to ModuleDependency.kt \n\tModuleDependency.feature%s "+
-		"to settings.gradle.kts\n", moduleNameCapitalCase, moduleNameLowerCase, moduleNameCapitalCase)
+	fmt.Printf("Don't forget to add the following lines:\n\t" +
+		"const val feature%s = \":feature_%s\" to ModuleDependency.kt\n\t" +
+		"ModuleDependency.feature%s to settings.gradle.kts\n\t" +
+		"import(%sFeatureModule) to BaseApplication.kt\n",
+		moduleNameCapitalCase, moduleNameLowerCase, moduleNameCapitalCase, moduleNameLowerCase)
 }
 
 var templateFileNames = []FileDescription{

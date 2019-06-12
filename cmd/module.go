@@ -18,8 +18,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/gobuffalo/packr"
 	"github.com/spf13/cobra"
-	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -29,8 +29,7 @@ import (
 type FileDescription struct {
 	DestinationFileName string
 	DestinationFilePath string
-	SourceTemplateFile  string
-	SourceTemplateName  string
+	Template  string
 }
 
 // moduleCmd represents the module command
@@ -46,6 +45,9 @@ var moduleCmd = &cobra.Command{
 		return nil
 	},
 }
+
+var templates = packr.NewBox("../files/templates")
+var staticFiles = packr.NewBox("../files/static")
 
 func init() {
 	rootCmd.AddCommand(moduleCmd)
@@ -73,19 +75,16 @@ var templateFileNames = []FileDescription{
 	{
 		"AndroidManifest.xml",
 		"feature_{{ .ModuleNameLowerCase }}/src/main/",
-		"./cmd/templates/AndroidManifest",
 		"AndroidManifest",
 	},
 	{
 		"%sFeatureNavigator.kt",
-		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/",
-		"./cmd/templates/FeatureNavigator",
+		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/presentation/",
 		"FeatureNavigator",
 	},
 	{
 		"%sModule.kt",
-		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/presentation/",
-		"./cmd/templates/Module",
+		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/",
 		"Module",
 	},
 }
@@ -94,20 +93,17 @@ var staticFileNames = []FileDescription{
 	{
 		"build.gradle.kts",
 		"feature_{{ .ModuleNameLowerCase }}/",
-		"./cmd/static/build.gradleFile",
-		"",
+		"build.gradleFile",
 	},
 	{
 		"lint.xml",
 		"feature_{{ .ModuleNameLowerCase }}/",
-		"./cmd/static/lint",
-		"",
+		"lint",
 	},
 	{
 		".gitignore",
 		"feature_{{ .ModuleNameLowerCase }}/",
-		"./cmd/static/gitignore",
-		"",
+		"gitignore",
 	},
 }
 
@@ -118,7 +114,10 @@ func writeTemplate(f FileDescription, moduleNameLowerCase string, moduleNameCapi
 		"ModuleNameCapitalCase": moduleNameCapitalCase,
 	}
 
-	t := template.Must(template.New(f.SourceTemplateName).ParseFiles(f.SourceTemplateFile))
+	input, err := templates.FindString(f.Template)
+	check(err)
+
+	t := template.Must(template.New(f.Template).Parse(input))
 	e := t.Execute(&data, argMap)
 	check(e)
 
@@ -136,22 +135,16 @@ func writeStatic(f FileDescription, moduleNameLowerCase string) {
 	argMap := map[string]interface{}{
 		"ModuleNameLowerCase": moduleNameLowerCase,
 	}
-
-	ft := template.Must(template.New("path").Parse(f.DestinationFilePath))
+	ft := template.Must(template.New(f.Template).Parse(f.DestinationFilePath))
 	var resolvedPath bytes.Buffer
 	check(ft.Execute(&resolvedPath, argMap))
 
 	check(os.MkdirAll(resolvedPath.String(), os.ModePerm))
 
-	in, err := os.Open(f.SourceTemplateFile)
+	input, err := staticFiles.Find(f.Template)
 	check(err)
-	defer in.Close()
 
-	out, err := os.Create(resolvedPath.String() + f.DestinationFileName)
-	check(err)
-	defer out.Close()
-
-	_, e := io.Copy(out, in)
+	e := ioutil.WriteFile(resolvedPath.String() + f.DestinationFileName, input, 0644)
 	check(e)
 }
 

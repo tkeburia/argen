@@ -9,7 +9,7 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/deckarep/golang-set v1.7.1
 	github.com/gobuffalo/depgen v0.1.1 // indirect
-	github.com/gobuffalo/packr v1.25.0 // indirect
+	github.com/gobuffalo/packr v1.25.0
 	github.com/gobuffalo/packr/v2 v2.3.2 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect

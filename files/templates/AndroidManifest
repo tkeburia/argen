@@ -1,9 +1,0 @@
-<manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.pagofx.feature.{{ .ModuleNameLowerCase }}">
-
-    <application tools:ignore="AllowBackup,GoogleAppIndexingWarning,MissingApplicationIcon">
-
-    </application>
-</manifest>

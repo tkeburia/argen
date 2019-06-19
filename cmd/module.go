@@ -18,20 +18,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/gobuffalo/packr"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"github.com/tkeburia/argen/util"
 	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
 )
 
-type FileDescription struct {
-	DestinationFileName string `yaml:"destinationFileName"`
-	DestinationFilePath string `yaml:"destinationFilePath"`
-	Template            string `yaml:"template"`
-}
+var Configuration string
 
 // moduleCmd represents the module command
 var moduleCmd = &cobra.Command{
@@ -47,37 +42,27 @@ var moduleCmd = &cobra.Command{
 	},
 }
 
-var templates = packr.NewBox("../files/templates")
-var staticFiles = packr.NewBox("../files/static")
-
 func init() {
 	rootCmd.AddCommand(moduleCmd)
+	moduleCmd.Flags().StringVarP(&Configuration, "configuration", "c", "", "Specify configuration to use")
 }
 
 func genModule(cmd *cobra.Command, args []string) {
+	if Configuration == "" {
+		check(cmd.Help())
+		return
+	}
 
 	moduleNameCapitalCase := strings.Title(args[0])
 	moduleNameLowerCase := strings.ToLower(args[0])
 
-	templatesYaml, err := ioutil.ReadFile("/Users/tornikekeburia/sandbox/argen/files/templates.yml")
-	check(err)
-
-	var templateFileNames []FileDescription
-
-	err = yaml.Unmarshal(templatesYaml, &templateFileNames)
-	check(err)
+	var templateFileNames = util.ReadFile(fullPath(Configuration, "templates.yml"))
 
 	for _, el := range templateFileNames {
 		writeTemplate(el, moduleNameLowerCase, moduleNameCapitalCase)
 	}
 
-	staticYaml, err := ioutil.ReadFile("/Users/tornikekeburia/sandbox/argen/files/static.yml")
-	check(err)
-
-	var staticFileNames []FileDescription
-
-	err = yaml.Unmarshal(staticYaml, &staticFileNames)
-	check(err)
+	var staticFileNames = util.ReadFile(fullPath(Configuration, "static.yml"))
 
 	for _, el := range staticFileNames {
 		writeStatic(el, moduleNameLowerCase, moduleNameCapitalCase)
@@ -90,17 +75,17 @@ func genModule(cmd *cobra.Command, args []string) {
 		moduleNameCapitalCase, moduleNameLowerCase, moduleNameCapitalCase, moduleNameLowerCase)
 }
 
-func writeTemplate(f FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
+func writeTemplate(f util.FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
 	var data bytes.Buffer
 	argMap := map[string]interface{}{
 		"ModuleNameLowerCase":   moduleNameLowerCase,
 		"ModuleNameCapitalCase": moduleNameCapitalCase,
 	}
 
-	input, err := templates.FindString(f.Template)
+	input, err := ioutil.ReadFile(fmt.Sprintf(fullPath(Configuration, f.Template)))
 	check(err)
 
-	t := template.Must(template.New(f.Template).Parse(input))
+	t := template.Must(template.New(f.Template).Parse(string(input)))
 	e := t.Execute(&data, argMap)
 	check(e)
 
@@ -113,7 +98,7 @@ func writeTemplate(f FileDescription, moduleNameLowerCase string, moduleNameCapi
 	check(e)
 }
 
-func writeStatic(f FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
+func writeStatic(f util.FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
 	argMap := map[string]interface{}{
 		"ModuleNameLowerCase": moduleNameLowerCase,
 		"ModuleNameCapitalCase": moduleNameCapitalCase,
@@ -123,7 +108,7 @@ func writeStatic(f FileDescription, moduleNameLowerCase string, moduleNameCapita
 
 	check(os.MkdirAll(resolvedPath, os.ModePerm))
 
-	input, err := staticFiles.Find(f.Template)
+	input, err := ioutil.ReadFile(fmt.Sprintf(fullPath(Configuration, f.Template)))
 	check(err)
 
 	e := ioutil.WriteFile(resolvedPath+resolvedFileName, input, 0644)
@@ -149,4 +134,8 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func fullPath(relPath string, file string) string {
+	return fmt.Sprintf("%s/%s/%s", configPath(), relPath, file)
 }

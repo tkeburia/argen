@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/gobuffalo/packr"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -27,9 +28,9 @@ import (
 )
 
 type FileDescription struct {
-	DestinationFileName string
-	DestinationFilePath string
-	Template  string
+	DestinationFileName string `yaml:"destinationFileName"`
+	DestinationFilePath string `yaml:"destinationFilePath"`
+	Template            string `yaml:"template"`
 }
 
 // moduleCmd represents the module command
@@ -58,55 +59,35 @@ func genModule(cmd *cobra.Command, args []string) {
 	moduleNameCapitalCase := strings.Title(args[0])
 	moduleNameLowerCase := strings.ToLower(args[0])
 
+	templatesYaml, err := ioutil.ReadFile("/Users/tornikekeburia/sandbox/argen/files/templates.yml")
+	check(err)
+
+	var templateFileNames []FileDescription
+
+	err = yaml.Unmarshal(templatesYaml, &templateFileNames)
+	check(err)
+
 	for _, el := range templateFileNames {
 		writeTemplate(el, moduleNameLowerCase, moduleNameCapitalCase)
 	}
 
+	staticYaml, err := ioutil.ReadFile("/Users/tornikekeburia/sandbox/argen/files/static.yml")
+	check(err)
+
+	var staticFileNames []FileDescription
+
+	err = yaml.Unmarshal(staticYaml, &staticFileNames)
+	check(err)
+
 	for _, el := range staticFileNames {
-		writeStatic(el, moduleNameLowerCase)
+		writeStatic(el, moduleNameLowerCase, moduleNameCapitalCase)
 	}
 
-	fmt.Printf("Don't forget to add the following lines:\n\t" +
-		"const val feature%s = \":feature_%s\" to ModuleDependency.kt\n\t" +
-		"ModuleDependency.feature%s to settings.gradle.kts\n\t" +
+	fmt.Printf("Don't forget to add the following lines:\n\t"+
+		"const val feature%s = \":feature_%s\" to ModuleDependency.kt\n\t"+
+		"ModuleDependency.feature%s to settings.gradle.kts\n\t"+
 		"import(%sFeatureModule) to BaseApplication.kt\n",
 		moduleNameCapitalCase, moduleNameLowerCase, moduleNameCapitalCase, moduleNameLowerCase)
-}
-
-var templateFileNames = []FileDescription{
-	{
-		"AndroidManifest.xml",
-		"feature_{{ .ModuleNameLowerCase }}/src/main/",
-		"AndroidManifest",
-	},
-	{
-		"%sFeatureNavigator.kt",
-		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/presentation/",
-		"FeatureNavigator",
-	},
-	{
-		"%sModule.kt",
-		"feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/",
-		"Module",
-	},
-}
-
-var staticFileNames = []FileDescription{
-	{
-		"build.gradle.kts",
-		"feature_{{ .ModuleNameLowerCase }}/",
-		"build.gradleFile",
-	},
-	{
-		"lint.xml",
-		"feature_{{ .ModuleNameLowerCase }}/",
-		"lint",
-	},
-	{
-		".gitignore",
-		"feature_{{ .ModuleNameLowerCase }}/",
-		"gitignore",
-	},
 }
 
 func writeTemplate(f FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
@@ -123,31 +104,37 @@ func writeTemplate(f FileDescription, moduleNameLowerCase string, moduleNameCapi
 	e := t.Execute(&data, argMap)
 	check(e)
 
-	ft := template.Must(template.New("path").Parse(f.DestinationFilePath))
-	var resolvedPath bytes.Buffer
-	check(ft.Execute(&resolvedPath, argMap))
+	resolvedPath := resolveString(f.DestinationFilePath, argMap)
+	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	check(os.MkdirAll(resolvedPath.String(), os.ModePerm))
+	check(os.MkdirAll(resolvedPath, os.ModePerm))
 
-	e = ioutil.WriteFile(truncatingSprintf(resolvedPath.String()+f.DestinationFileName, moduleNameCapitalCase), data.Bytes(), 0644)
+	e = ioutil.WriteFile(truncatingSprintf(resolvedPath+resolvedFileName, moduleNameCapitalCase), data.Bytes(), 0644)
 	check(e)
 }
 
-func writeStatic(f FileDescription, moduleNameLowerCase string) {
+func writeStatic(f FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
 	argMap := map[string]interface{}{
 		"ModuleNameLowerCase": moduleNameLowerCase,
+		"ModuleNameCapitalCase": moduleNameCapitalCase,
 	}
-	ft := template.Must(template.New(f.Template).Parse(f.DestinationFilePath))
-	var resolvedPath bytes.Buffer
-	check(ft.Execute(&resolvedPath, argMap))
+	resolvedPath := resolveString(f.DestinationFilePath, argMap)
+	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	check(os.MkdirAll(resolvedPath.String(), os.ModePerm))
+	check(os.MkdirAll(resolvedPath, os.ModePerm))
 
 	input, err := staticFiles.Find(f.Template)
 	check(err)
 
-	e := ioutil.WriteFile(resolvedPath.String() + f.DestinationFileName, input, 0644)
+	e := ioutil.WriteFile(resolvedPath+resolvedFileName, input, 0644)
 	check(e)
+}
+
+func resolveString(s string, argMap map[string]interface{}) string {
+	ft := template.Must(template.New(s).Parse(s))
+	var resolvedPath bytes.Buffer
+	check(ft.Execute(&resolvedPath, argMap))
+	return resolvedPath.String()
 }
 
 func truncatingSprintf(str string, args ...interface{}) string {

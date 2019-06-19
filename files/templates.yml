@@ -1,0 +1,13 @@
+- destinationFileName: "AndroidManifest.xml"
+  destinationFilePath: "feature_{{ .ModuleNameLowerCase }}/src/main/"
+  template: "AndroidManifest"
+
+- destinationFileName: "{{ .ModuleNameCapitalCase }}FeatureNavigator.kt"
+  destinationFilePath: "feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/presentation/"
+  template: "FeatureNavigator"
+
+- destinationFileName: "{{ .ModuleNameCapitalCase }}Module.kt"
+  destinationFilePath: "feature_{{ .ModuleNameLowerCase }}/src/main/java/com/pagofx/feature/{{ .ModuleNameLowerCase }}/"
+  template: "Module"
+
+

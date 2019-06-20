@@ -49,20 +49,20 @@ func init() {
 
 func genModule(cmd *cobra.Command, args []string) {
 	if Configuration == "" {
-		check(cmd.Help())
+		util.Check(cmd.Help())
 		return
 	}
 
 	moduleNameCapitalCase := strings.Title(args[0])
 	moduleNameLowerCase := strings.ToLower(args[0])
 
-	var templateFileNames = util.ReadFile(fullPath(Configuration, "templates.yml"))
+	var templateFileNames = util.ReadFile(util.FullPath(Configuration, TemplatesFileName))
 
 	for _, el := range templateFileNames {
 		writeTemplate(el, moduleNameLowerCase, moduleNameCapitalCase)
 	}
 
-	var staticFileNames = util.ReadFile(fullPath(Configuration, "static.yml"))
+	var staticFileNames = util.ReadFile(util.FullPath(Configuration, StaticFileName))
 
 	for _, el := range staticFileNames {
 		writeStatic(el, moduleNameLowerCase, moduleNameCapitalCase)
@@ -82,20 +82,20 @@ func writeTemplate(f util.FileDescription, moduleNameLowerCase string, moduleNam
 		"ModuleNameCapitalCase": moduleNameCapitalCase,
 	}
 
-	input, err := ioutil.ReadFile(fmt.Sprintf(fullPath(Configuration, f.Template)))
-	check(err)
+	input, err := ioutil.ReadFile(fmt.Sprintf(util.FullPath(Configuration, f.Template)))
+	util.Check(err)
 
 	t := template.Must(template.New(f.Template).Parse(string(input)))
 	e := t.Execute(&data, argMap)
-	check(e)
+	util.Check(e)
 
 	resolvedPath := resolveString(f.DestinationFilePath, argMap)
 	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	check(os.MkdirAll(resolvedPath, os.ModePerm))
+	util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
 
 	e = ioutil.WriteFile(truncatingSprintf(resolvedPath+resolvedFileName, moduleNameCapitalCase), data.Bytes(), 0644)
-	check(e)
+	util.Check(e)
 }
 
 func writeStatic(f util.FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
@@ -106,19 +106,19 @@ func writeStatic(f util.FileDescription, moduleNameLowerCase string, moduleNameC
 	resolvedPath := resolveString(f.DestinationFilePath, argMap)
 	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	check(os.MkdirAll(resolvedPath, os.ModePerm))
+	util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
 
-	input, err := ioutil.ReadFile(fmt.Sprintf(fullPath(Configuration, f.Template)))
-	check(err)
+	input, err := ioutil.ReadFile(fmt.Sprintf(util.FullPath(Configuration, f.Template)))
+	util.Check(err)
 
 	e := ioutil.WriteFile(resolvedPath+resolvedFileName, input, 0644)
-	check(e)
+	util.Check(e)
 }
 
 func resolveString(s string, argMap map[string]interface{}) string {
 	ft := template.Must(template.New(s).Parse(s))
 	var resolvedPath bytes.Buffer
-	check(ft.Execute(&resolvedPath, argMap))
+	util.Check(ft.Execute(&resolvedPath, argMap))
 	return resolvedPath.String()
 }
 
@@ -128,14 +128,4 @@ func truncatingSprintf(str string, args ...interface{}) string {
 		panic("Unexpected string:" + str)
 	}
 	return fmt.Sprintf(str, args[:n]...)
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func fullPath(relPath string, file string) string {
-	return fmt.Sprintf("%s/%s/%s", configPath(), relPath, file)
 }

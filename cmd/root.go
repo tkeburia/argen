@@ -57,12 +57,11 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	viper.SetDefault("configPath", home+"/.argen")
+	viper.SetDefault("ConfigPath", home+"/.argen")
 	viper.SetDefault("verbose", Verbose)
 
 	viper.AutomaticEnv() // read in environment variables that match
 }
 
-func configPath() string {
-	return viper.GetString("configPath")
-}
+const TemplatesFileName = "templates.yml"
+const StaticFileName = "static.yml"

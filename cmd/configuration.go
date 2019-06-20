@@ -17,8 +17,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"github.com/tkeburia/argen/log"
+	"github.com/tkeburia/argen/util"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"os"
@@ -28,7 +30,7 @@ import (
 var configurationCmd = &cobra.Command{
 	Use:   "configuration",
 	Short: "Manage configurations",
-	Long:  ``,
+	Long:  `Manage configurations`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		return
@@ -39,6 +41,8 @@ var addSubCmd = &cobra.Command{
 	Use:   "add name github_repo",
 	Short: "Add configuration from github",
 	Long: `
+Add configuration from github
+
 name - name of the configuration that can be used to generate code
 github_repo - source repository that contains configuration files to be used for generation
 `,
@@ -54,7 +58,7 @@ github_repo - source repository that contains configuration files to be used for
 var rmSubCmd = &cobra.Command{
 	Use:   "rm config_name",
 	Short: "Delete local configuration",
-	Long:  ``,
+	Long:  `Delete local configuration`,
 	Run:   rmConfig,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
@@ -67,7 +71,7 @@ var rmSubCmd = &cobra.Command{
 var lsSubCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "list local configurations",
-	Long:  ``,
+	Long:  `list local configurations`,
 	Run:   lsConfig,
 }
 
@@ -75,6 +79,8 @@ var updateSubCmd = &cobra.Command{
 	Use:   "update config_name",
 	Short: "Pull the most recent version of given configuration from github",
 	Long: `
+Pull the most recent version of given configuration from github
+
 IMPORTANT: this will overwrite all local changes to the configuration files
 `,
 	Run: updateConfig,
@@ -89,8 +95,8 @@ IMPORTANT: this will overwrite all local changes to the configuration files
 var showSubCmd = &cobra.Command{
 	Use:   "show config_name",
 	Short: "show detailed information about a specific configuration",
-	Long: ` `,
-	Run: showConfig,
+	Long:  `show detailed information about a specific configuration`,
+	Run:   showConfig,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return errors.New(log.ErrorS("requires a configuration name"))
@@ -108,68 +114,120 @@ func init() {
 	configurationCmd.AddCommand(showSubCmd)
 }
 
-func addConfig(cmd *cobra.Command, args []string) {
-	clone(args[1], fmt.Sprintf("%s/%s", configPath(), args[0]))
+func addConfig(_ *cobra.Command, args []string) {
+	clone(args[1], util.ConfigurationPath(args[0]))
 }
 
-func rmConfig(cmd *cobra.Command, args []string) {
-	remove(fmt.Sprintf("%s/%s", configPath(), args[0]))
+func rmConfig(_ *cobra.Command, args []string) {
+	remove(util.ConfigurationPath(args[0]))
 }
 
-func lsConfig(cmd *cobra.Command, args []string) {
-	d, e := os.Open(configPath())
-	check(e)
+func lsConfig(_ *cobra.Command, args []string) {
+	d, e := os.Open(util.BaseConfigPath())
+	util.Check(e)
 
 	names, e := d.Readdirnames(-1)
-	check(e)
+	util.Check(e)
 
 	for _, el := range names {
 		fmt.Println(el)
 	}
 }
 
-func showConfig(cmd *cobra.Command, args []string) {
+func showConfig(_ *cobra.Command, args []string) {
+	templateFiles := util.ReadFile(util.FullPath(args[0], TemplatesFileName))
+	staticFiles := util.ReadFile(util.FullPath(args[0], StaticFileName))
 
+	table := makeTable()
+
+	var tEntries [][]string
+	var sEntries [][]string
+
+	populateEntries(templateFiles, &tEntries, staticFiles, &sEntries)
+
+	table.AppendBulk(tEntries)
+	table.AppendBulk(sEntries)
+	remotes := getRemotes(args[0])
+
+	logInfo(remotes, args[0])
+
+	table.Render()
 }
 
-func updateConfig(cmd *cobra.Command, args []string) {
-	path := fmt.Sprintf("%s/%s", configPath(), args[0])
+func updateConfig(_ *cobra.Command, args []string) {
+	path := util.ConfigurationPath(args[0])
 
 	g, e := git.PlainOpen(path)
-	check(e)
+	util.Check(e)
 
 	e = g.Fetch(&git.FetchOptions{})
 	if e == git.NoErrAlreadyUpToDate {
 		log.Info("No new upstream changes\n")
 	} else {
-		check(e)
+		util.Check(e)
 	}
 
 	w, e := g.Worktree()
-	check(e)
+	util.Check(e)
 
 	rh, e := g.ResolveRevision(plumbing.Revision("origin/master"))
-	check(e)
+	util.Check(e)
 
 	log.Info("resetting any local changes...\n")
-	check(w.Reset(&git.ResetOptions{Mode:git.HardReset, Commit: *rh}))
+	util.Check(w.Reset(&git.ResetOptions{Mode: git.HardReset, Commit: *rh}))
+}
+
+func populateEntries(templateFiles []util.FileDescription, tEntries *[][]string, staticFiles []util.FileDescription, sEntries *[][]string) {
+	for _, el := range templateFiles {
+		*tEntries = append(*tEntries, []string{el.Template, el.DestinationFilePath, el.DestinationFileName})
+	}
+	for _, el := range staticFiles {
+		*sEntries = append(*sEntries, []string{el.Template, el.DestinationFilePath, el.DestinationFileName})
+	}
+}
+
+func logInfo(remotes []*git.Remote, configName string) {
+	log.Info("\nRemote(s):\n")
+	for _, el := range remotes {
+		log.Info("\t%s\n", el.Config().URLs)
+	}
+	log.Info("Location: %s\n", util.ConfigurationPath(configName))
+	log.Info("Files:")
+}
+
+func getRemotes(configName string) []*git.Remote {
+	repository, err := git.PlainOpen(util.ConfigurationPath(configName))
+	util.Check(err)
+	remotes, err := repository.Remotes()
+	util.Check(err)
+	return remotes
+}
+
+func makeTable() *tablewriter.Table {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Source", "Destination path", "Destination file name"})
+	table.SetHeaderAlignment(tablewriter.ALIGN_CENTER)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	return table
 }
 
 func clone(name string, directory string) {
 	if needsUpdate(directory) {
 		remove(directory)
 		log.Verbose("cloning %s to %s\n", name, directory)
-		check(exec.Command("git", "clone", name, directory).Run())
+		util.Check(exec.Command("git", "clone", name, directory).Run())
 	}
 }
 
 func remove(directory string) {
 	log.Verbose("deleting %s...\n", directory)
-	check(os.RemoveAll(directory))
+	util.Check(os.RemoveAll(directory))
 }
 
 func needsUpdate(path string) bool {
-	log.Verbose("Checking for differences\n")
+	log.Verbose("util.Check()ing for differences\n")
 	revision := "master"
 	remoteRevision := "origin/master"
 
@@ -181,14 +239,14 @@ func needsUpdate(path string) bool {
 	log.Verbose("git rev-parse %s", revision)
 
 	h, e := g.ResolveRevision(plumbing.Revision(revision))
-	check(e)
+	util.Check(e)
 
 	log.Verbose("%s\n", h.String())
 
 	log.Verbose("git rev-parse %s", remoteRevision)
 
 	rh, e := g.ResolveRevision(plumbing.Revision(remoteRevision))
-	check(e)
+	util.Check(e)
 
 	log.Verbose("%s\n", rh.String())
 
@@ -199,7 +257,8 @@ func needsUpdate(path string) bool {
 	return updateNeeded
 }
 
-var boolMap = map[bool]string {
+var boolMap = map[bool]string{
 	false: " not ",
-	true: " ",
+	true:  " ",
 }
+

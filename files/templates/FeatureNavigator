@@ -1,7 +1,0 @@
-package com.pagofx.feature.{{ .ModuleNameLowerCase }}.presentation
-
-import com.pagofx.feature.base.presentation.navigation.NavigationExecutor
-
-class {{ .ModuleNameCapitalCase }}FeatureNavigator(private val navigationExecutor: NavigationExecutor) {
-
-}

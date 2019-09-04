@@ -100,13 +100,15 @@ func writeTemplate(f util.FileDescription, moduleNameLowerCase string, moduleNam
 
 func writeStatic(f util.FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
 	argMap := map[string]interface{}{
-		"ModuleNameLowerCase": moduleNameLowerCase,
+		"ModuleNameLowerCase":   moduleNameLowerCase,
 		"ModuleNameCapitalCase": moduleNameCapitalCase,
 	}
 	resolvedPath := resolveString(f.DestinationFilePath, argMap)
 	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
+	if resolvedPath != "" {
+		util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
+	}
 
 	input, err := ioutil.ReadFile(fmt.Sprintf(util.FullPath(Configuration, f.Template)))
 	util.Check(err)

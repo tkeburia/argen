@@ -67,12 +67,6 @@ func genModule(cmd *cobra.Command, args []string) {
 	for _, el := range staticFileNames {
 		writeStatic(el, moduleNameLowerCase, moduleNameCapitalCase)
 	}
-
-	fmt.Printf("Don't forget to add the following lines:\n\t"+
-		"const val feature%s = \":feature_%s\" to ModuleDependency.kt\n\t"+
-		"ModuleDependency.feature%s to settings.gradle.kts\n\t"+
-		"import(%sFeatureModule) to BaseApplication.kt\n",
-		moduleNameCapitalCase, moduleNameLowerCase, moduleNameCapitalCase, moduleNameLowerCase)
 }
 
 func writeTemplate(f util.FileDescription, moduleNameLowerCase string, moduleNameCapitalCase string) {
@@ -92,7 +86,9 @@ func writeTemplate(f util.FileDescription, moduleNameLowerCase string, moduleNam
 	resolvedPath := resolveString(f.DestinationFilePath, argMap)
 	resolvedFileName := resolveString(f.DestinationFileName, argMap)
 
-	util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
+	if resolvedPath != "" {
+		util.Check(os.MkdirAll(resolvedPath, os.ModePerm))
+	}
 
 	e = ioutil.WriteFile(truncatingSprintf(resolvedPath+resolvedFileName, moduleNameCapitalCase), data.Bytes(), 0644)
 	util.Check(e)

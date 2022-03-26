@@ -43,7 +43,7 @@ var moduleCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(moduleCmd)
+	RootCmd.AddCommand(moduleCmd)
 	moduleCmd.Flags().StringVarP(&Configuration, "configuration", "c", "", "Specify configuration to use")
 }
 

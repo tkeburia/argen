@@ -16,16 +16,16 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var Verbose bool
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "argen",
 	Short: "",
 	Long:  ``,
@@ -35,9 +35,9 @@ var rootCmd = &cobra.Command{
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// This is called by main.main(). It only needs to happen once to the RootCmd.
 func Execute() {
- 	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -45,7 +45,7 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "")
+	RootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "")
 }
 
 // initConfig reads in config file and ENV variables if set.

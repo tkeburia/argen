@@ -15,28 +15,50 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 	"os"
 )
 
 // completionCmd represents the completion command
 var completionCmd = &cobra.Command{
-	Use:   "completion",
-	Short: "Generates bash completion scripts",
-	Long: `To load completion run
+	Use:   "completion [bash|zsh]",
+	Short: "Generates bash or zsh completion scripts",
+	Long: fmt.Sprintf(`To load completions:
 
-. <(bitbucket completion)
+Bash:
 
-To configure your bash shell to load completions for each session add to your bashrc
+  $ source <(%[1]s completion bash)
 
-# ~/.bashrc or ~/.profile
-. <(bitbucket completion)
-`,
+  # To load completions for each session, execute once:
+  # Linux:
+  $ %[1]s completion bash > /etc/bash_completion.d/%[1]s
+  # macOS:
+  $ %[1]s completion bash > /usr/local/etc/bash_completion.d/%[1]s
+
+Zsh:
+
+  # If shell completion is not already enabled in your environment,
+  # you will need to enable it.  You can execute the following once:
+
+  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+  # To load completions for each session, execute once:
+  $ %[1]s completion zsh > "${fpath[1]}/_%[1]s"
+
+  # You will need to start a new shell for this setup to take effect.`, RootCmd.Name()),
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactValidArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		_ = rootCmd.GenBashCompletion(os.Stdout)
+		switch args[0] {
+		case "bash":
+			_ = cmd.Root().GenBashCompletion(os.Stdout)
+		case "zsh":
+			_ = cmd.Root().GenZshCompletion(os.Stdout)
+		}
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(completionCmd)
+	RootCmd.AddCommand(completionCmd)
 }

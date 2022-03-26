@@ -106,7 +106,7 @@ var showSubCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(configurationCmd)
+	RootCmd.AddCommand(configurationCmd)
 	configurationCmd.AddCommand(addSubCmd)
 	configurationCmd.AddCommand(rmSubCmd)
 	configurationCmd.AddCommand(lsSubCmd)
@@ -261,4 +261,3 @@ var boolMap = map[bool]string{
 	false: " not ",
 	true:  " ",
 }
-
